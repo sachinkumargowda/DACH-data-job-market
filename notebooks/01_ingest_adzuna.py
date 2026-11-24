@@ -21,24 +21,137 @@ VOL    = f"/Volumes/{CAT}/bronze/raw"
 
 BASE = "https://api.adzuna.com/v1/api/jobs"
 
-COUNTRIES = ["de", "at", "ch"]
+COUNTRIES = ["at"]
 
 ROLES = [
-    "data engineer",
-    "data analyst",
-    "data scientist",
-    "analytics engineer",
-    "bi developer",
-    "machine learning engineer",
-    "ai engineer",
-    "data architect",
-    "etl developer",
-    "big data engineer",
-    "mlops engineer",
-    "data warehouse",
+
+    # PRIORITY 1: Robotics
+    "robotics engineer",
+    "robotics software engineer",
+    "robotics research engineer",
+    "robot software developer",
+    "mobile robotics",
+    "robotik entwickler",
+    "robotik ingenieur",
+    "robotik softwareentwickler",
+    "ROS2",
+
+    # PRIORITY 1: SLAM and autonomous systems
+    "SLAM",
+    "SLAM engineer",
+    "autonomous systems",
+    "autonomous driving",
+    "localization engineer",
+    "navigation engineer",
+    "path planning",
+    "motion planning",
+    "visual odometry",
+    "autonome systeme",
+    "autonomes fahren",
+    "pfadplanung",
+    "Lokalisierung",
+
+    # PRIORITY 1: Sensors and perception
+    "sensor fusion",
+    "sensor engineer",
+    "sensor development",
+    "perception engineer",
+    "LiDAR",
+    "sensorfusion",
+    "sensorik",
+    "sensorentwickler",
+    "sensortechnik",
+
+    # PRIORITY 1: Computer vision
+    "computer vision",
+    "computer vision engineer",
+    "image processing",
+    "machine vision",
+    "bildverarbeitung",
+    "bilderkennung",
+    "3D vision",
+
+    # PRIORITY 1: Drones and UAV
+    "drone engineer",
+    "UAV engineer",
+    "flight control engineer",
+    "drone development",
+    "drohnenentwicklung",
+
+    # PRIORITY 2: Mechatronics
+    "mechatronics engineer",
+    "mechatronics development",
+    "system engineer mechatronics",
+    "mechatronik",
+    "mechatronik entwickler",
+    "entwicklungsingenieur",
+
+    # PRIORITY 2: Control engineering
+    "control systems engineer",
+    "control engineer",
+    "controls software engineer",
+    "regelungstechnik",
+    "regelungsingenieur",
+    "steuerungstechnik",
+
+    # PRIORITY 2: MATLAB and simulation
+    "MATLAB",
+    "Simulink",
+    "simulation engineer",
+    "model based development",
+    "model based systems engineering",
+    "simulationsingenieur",
+    "modellentwicklung",
+    "modellbasierte entwicklung",
+
+    # PRIORITY 2: Automotive
+    "automotive development engineer",
+    "ADAS engineer",
+    "vehicle dynamics engineer",
+    "functional safety engineer",
+    "fahrzeugentwicklung",
+    "fahrerassistenzsysteme",
+
+    # PRIORITY 3: FEM and structural mechanics
+    "finite element analysis",
+    "FEA engineer",
+    "FEM engineer",
+    "Abaqus",
+    "Code_Aster",
+    "berechnungsingenieur",
+    "FEM simulation",
+    "strukturmechanik",
+    "festigkeitsberechnung",
+
+    # PRIORITY 3: Digital twins
+    "digital twin",
+    "digital twin engineer",
+    "digitaler zwilling",
+    "virtual validation",
+
+    # Additional: Automation and testing
+    "automation engineer",
+    "automatisierungstechnik",
+    "automatisierungsingenieur",
+    "test engineer",
+    "validation engineer",
+    "validierungsingenieur",
+
+    # Additional: Research and graduate opportunities
+    "research engineer",
+    "research assistant robotics",
+    "PhD robotics",
+    "PhD mechatronics",
+    "doctoral researcher robotics",
+    "forschungsingenieur",
+    "wissenschaftlicher mitarbeiter",
+    "universitaetsassistent",
+    "praedoc",
+    "trainee engineering",
+    "graduate engineer",
 ]
 
-MAX_PAGES = 45         
+MAX_PAGES = 2         
 
 # COMMAND ----------
 
@@ -68,7 +181,7 @@ for c in COUNTRIES:
     r = requests.get(
         f"{BASE}/{c}/search/1",
         params={"app_id": APP_ID, "app_key": APP_KEY,
-                "results_per_page": 5, "what": "data engineer",
+                "results_per_page": 5, "what": ROLES[0],
                 "content-type": "application/json"}, timeout=30)
     print(f"{c}: HTTP {r.status_code}  "
           f"{r.json().get('count') if r.ok else r.text[:80]}")
