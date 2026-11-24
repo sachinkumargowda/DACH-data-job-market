@@ -80,6 +80,99 @@ FINANCE = (r"controlling|\bcontroller\b|finanzen|buchhalt|"
            r"finance-consulting|finance solutions|"
            r"transaction advisory")
 
+# =====================================================
+# Engineering job classification
+# =====================================================
+
+ENGINEERING_RULES = [
+
+    ("slam and localization",
+     r"\bslam\b|locali[sz]ation|lokalisierung|"
+     r"visual odometry|path planning|motion planning|"
+     r"pfadplanung|\bvio\b|mapping engineer"),
+
+    ("sensor fusion and perception",
+     r"sensor.?fusion|perception|\blidar\b|"
+     r"sensorik|sensorentwickl|sensortechnik|"
+     r"sensor development|sensor engineer"),
+
+    ("computer vision",
+     r"computer vision|machine vision|"
+     r"bildverarbeitung|bilderkennung|"
+     r"image processing|3d vision|opencv"),
+
+    ("autonomous systems",
+     r"autonomous|autonome|autonomes|"
+     r"\badas\b|fahrerassistenz|"
+     r"self.driving|automated driving"),
+
+    ("drones and uav",
+     r"\bdrone|drohnen|\buav\b|\buas\b|"
+     r"flight control|autopilot|flugregelung"),
+
+    ("robotics",
+     r"robotics|robotik|robot software|"
+     r"mobile robot|robot development|"
+     r"\bros\s*2\b|robot programming"),
+
+    ("fem and structural simulation",
+     r"\bfem\b|\bfea\b|finite.element|"
+     r"abaqus|code.aster|berechnungsingenieur|"
+     r"strukturmechanik|festigkeitsberechnung|"
+     r"structural simulation|structural analysis"),
+
+    ("digital twin",
+     r"digital twin|digitaler zwilling|"
+     r"digitale zwillinge|virtual validation"),
+
+    ("control systems",
+     r"control systems|control engineer|"
+     r"controls engineer|controls software|"
+     r"regelungstechnik|regelungsingenieur|"
+     r"regelungstechniker|steuerungstechnik"),
+
+    ("simulation and model based engineering",
+     r"simulation|simulationsingenieur|"
+     r"matlab|simulink|model.based|"
+     r"modellbasiert|modellentwicklung|\bmbse\b"),
+
+    ("automotive engineering",
+     r"automotive|vehicle dynamics|"
+     r"fahrzeugentwickl|fahrzeugtechnik|"
+     r"functional safety|funktionale sicherheit"),
+
+    ("mechatronics",
+     r"mechatronics|mechatronik|"
+     r"mechatronic systems"),
+
+    ("automation",
+     r"automation|automatisierung|"
+     r"\bplc\b|\bsps\b|industrial control"),
+
+    ("testing and validation",
+     r"test engineer|testingenieur|"
+     r"validation|validierung|"
+     r"pruefingenieur|prueftechnik"),
+
+    ("research and phd",
+     r"research engineer|research assistant|"
+     r"research scientist|forschungsingenieur|"
+     r"wissenschaftliche[rn]? mitarbeiter|"
+     r"\bphd\b|doctoral|doktorand|"
+     r"universitaetsassistent|praedoc"),
+
+    ("general engineering",
+     r"entwicklungsingenieur|development engineer|"
+     r"systems engineer|systemingenieur|"
+     r"graduate engineer|trainee engineering"),
+
+]
+
+ENGINEERING_FAMILIES = [
+    family for family, pattern in ENGINEERING_RULES
+]
+
+
 R_ARCHITECT = r"data\s+[\w\s\-&/]*architect|datenarchitekt"
 R_ANALYTICS_ENG = r"analytics engineer"
 R_ENGINEER = (r"data engineer|dateningenieur|\bbig data\b|"
@@ -193,6 +286,14 @@ _ORDER = [
     ("ai (other)", R_AI_OTHER),
 ]
 
+# Add engineering rules to the existing classifier.
+# Preserve the first invalid-title check.
+
+_ORDER = (
+    _ORDER[:1]
+    + ENGINEERING_RULES
+    + _ORDER[1:]
+)
 
 def _fold(s):
     s = s.lower().strip()
@@ -252,6 +353,49 @@ CASES = [
     ("Versicherungsagent",                   "other"),
 ]
 
+CASES += [
+
+    ("Robotics Engineer",
+     "robotics"),
+
+    ("SLAM Engineer",
+     "slam and localization"),
+
+    ("Sensor Fusion Engineer",
+     "sensor fusion and perception"),
+
+    ("Computer Vision Engineer",
+     "computer vision"),
+
+    ("Mechatronik Entwicklungsingenieur",
+     "mechatronics"),
+
+    ("Regelungstechniker",
+     "control systems"),
+
+    ("MATLAB Simulink Engineer",
+     "simulation and model based engineering"),
+
+    ("FEM Berechnungsingenieur",
+     "fem and structural simulation"),
+
+    ("Digital Twin Engineer",
+     "digital twin"),
+
+    ("PhD Robotics",
+     "robotics"),
+
+    ("Automatisierungsingenieur",
+     "automation"),
+
+    ("UAV Flight Control Engineer",
+     "drones and uav"),
+
+    ("ADAS Engineer",
+     "autonomous systems"),
+
+]
+
 fails = [(t, classify(t), e) for t, e in CASES if classify(t) != e]
 for t, got, exp in fails:
     print(f"FAIL  {t!r} -> {got}, expected {exp}")
@@ -269,6 +413,22 @@ CITY_STATES = ["berlin", "hamburg", "bremen", "wien",
 
 a2 = F.expr("try_element_at(location.area, 2)")
 a3 = F.expr("try_element_at(location.area, 3)")
+
+# Build Spark classification from the same rules
+# used by the Python classifier.
+
+role_expr = None
+
+for family, pattern in _ORDER:
+
+    condition = F.col("title_norm").rlike(pattern)
+
+    if role_expr is None:
+        role_expr = F.when(condition, family)
+    else:
+        role_expr = role_expr.when(condition, family)
+
+role_expr = role_expr.otherwise("other")
 
 s = (b
     .withColumn("title_raw", F.trim(F.col("title")))
@@ -352,52 +512,48 @@ s = (b
     #   3. data families, most specific first
     #   4. AI families, most specific first, vague catch-all last
     #   5. anything left -> other
-    .withColumn("role_family",
-        F.when(F.col("title_norm").rlike(INVALID), "invalid")
+    .withColumn("role_family", role_expr)
 
-         .when(F.col("title_norm").rlike(ENTRY), "entry programme")
-         .when(F.col("title_norm").rlike(DATACENTRE), "data centre")
-         .when(F.col("title_norm").rlike(FINANCE), "finance")
+    .withColumn(
+    "role_group",
 
-         .when(F.col("title_norm").rlike(R_ARCHITECT),
-               "data architect")
-         .when(F.col("title_norm").rlike(R_ANALYTICS_ENG),
-               "analytics engineer")
-         .when(F.col("title_norm").rlike(R_ENGINEER),
-               "data engineer")
-         .when(F.col("title_norm").rlike(R_DWH), "dwh / etl")
-         .when(F.col("title_norm").rlike(R_GOVERNANCE),
-               "data governance")
-         .when(F.col("title_norm").rlike(R_SCIENTIST),
-               "data scientist")
-         .when(F.col("title_norm").rlike(R_ANALYST), "data analyst")
-         .when(F.col("title_norm").rlike(R_CONSULTANT),
-               "data consultant")
-         .when(F.col("title_norm").rlike(R_BI), "bi developer")
+    F.when(
+        F.col("role_family").isin(
+            *ENGINEERING_FAMILIES
+        ),
+        "engineering"
+    )
 
-     
-         .when(F.col("title_norm").rlike(R_AI_RESEARCH), "ai research")
-         .when(F.col("title_norm").rlike(R_GENAI), "genai / llm")
-         .when(F.col("title_norm").rlike(R_MLOPS), "mlops")
-         .when(F.col("title_norm").rlike(R_ML), "ml engineer")
-         .when(F.col("title_norm").rlike(R_AI_CONSULT), "ai consultant")
-         .when(F.col("title_norm").rlike(R_AI_ENGINEER), "ai engineer")
-         .when(F.col("title_norm").rlike(R_AI_OTHER), "ai (other)")
+    .when(
+        F.col("role_family").isin(
+            "ai engineer",
+            "ai research",
+            "ml engineer",
+            "genai / llm",
+            "mlops",
+            "ai consultant",
+            "ai (other)"
+        ),
+        "ai"
+    )
 
-         .otherwise("other"))
+    .when(
+        F.col("role_family").isin(
+            "data engineer",
+            "data analyst",
+            "data scientist",
+            "data architect",
+            "analytics engineer",
+            "dwh / etl",
+            "data governance",
+            "data consultant",
+            "bi developer"
+        ),
+        "data"
+    )
 
-    # Coarse grouping, so a chart can still show "all AI" in one bar
-    # without anyone having to hardcode the seven names again.
-    .withColumn("role_group",
-        F.when(F.col("role_family").isin(
-            "genai / llm", "mlops", "ml engineer", "ai research",
-            "ai consultant", "ai engineer", "ai (other)"), "ai")
-         .when(F.col("role_family").isin(
-            "data engineer", "data analyst", "data scientist",
-            "data architect", "analytics engineer", "dwh / etl",
-            "data governance", "data consultant", "bi developer"),
-            "data")
-         .otherwise("excluded"))
+    .otherwise("excluded")
+)
 
     .withColumn("gendered_tag",
         F.col("title_norm").rlike(
@@ -416,6 +572,53 @@ s = (b
         F.substring(F.lower("description"), 1, 200)), 256))
 
     .withColumnRenamed("id", "adzuna_id")
+)
+
+# Fallback classification using job descriptions.
+
+description_norm = fold(F.col("description"))
+
+description_rules = ENGINEERING_RULES[:14]
+
+description_expr = None
+
+for family, pattern in description_rules:
+
+    condition = description_norm.rlike(pattern)
+
+    if description_expr is None:
+        description_expr = F.when(condition, family)
+    else:
+        description_expr = description_expr.when(
+            condition, family
+        )
+
+description_expr = description_expr.otherwise("other")
+
+s = s.withColumn(
+    "role_family",
+
+    F.when(
+        F.col("role_family").isin(
+            "other",
+            "general engineering"
+        ),
+        F.when(
+            description_expr != "other",
+            description_expr
+        ).otherwise(F.col("role_family"))
+    ).otherwise(F.col("role_family"))
+)
+
+s = s.withColumn(
+    "role_group",
+
+    F.when(
+        F.col("role_family").isin(
+            *ENGINEERING_FAMILIES
+        ),
+        "engineering"
+    ).otherwise(F.col("role_group"))
 )
 
 # COMMAND ----------
@@ -509,10 +712,13 @@ AI_FAMILIES = ["ai engineer", "genai / llm", "ml engineer", "mlops",
 
 VAGUE_FAMILY = "ai (other)"
 
-KEEP = DATA_FAMILIES + AI_FAMILIES
+KEEP = ENGINEERING_FAMILIES + [
+    "ai research",
+    "ml engineer",
+    "ai engineer"
+]
 
-
-MAX_AGE_DAYS = 365
+MAX_AGE_DAYS = 90
 
 in_scope = passed.filter(F.col("role_family").isin(KEEP))
 
@@ -533,8 +739,8 @@ n_drop  = off_scope.count()
 n_all   = n_keep + n_stale + n_drop
 
 print(f"kept        : {n_keep:,} live data and AI roles")
-print(f"out of scope: {n_drop:,} ({n_drop / n_all:.1%})")
-print(f"stale >{MAX_AGE_DAYS}d : {n_stale:,} ({n_stale / n_all:.1%})")
+print(f"out of scope: {n_drop:,} ({n_drop / max(n_all, 1)})")
+print(f"stale >{MAX_AGE_DAYS}d : {n_stale:,} ({n_stale / max(n_all, 1)})")
 print()
 
 before = in_scope.agg(F.avg("age_days")).first()[0]
