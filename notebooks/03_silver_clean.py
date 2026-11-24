@@ -733,25 +733,35 @@ excluded  = off_scope.unionByName(
     stale.withColumn("exclude_reason",
                      F.lit(f"older than {MAX_AGE_DAYS} days")))
 
+
 n_keep  = clean.count()
 n_stale = stale.count()
 n_drop  = off_scope.count()
 n_all   = n_keep + n_stale + n_drop
 
-print(f"kept        : {n_keep:,} live data and AI roles")
-print(f"out of scope: {n_drop:,} ({n_drop / max(n_all, 1)})")
-print(f"stale >{MAX_AGE_DAYS}d : {n_stale:,} ({n_stale / max(n_all, 1)})")
+print(f"kept        : {n_keep:,} live engineering and selected AI roles")
+print(f"out of scope: {n_drop:,} ({n_drop / max(n_all, 1):.1%})")
+print(f"stale >{MAX_AGE_DAYS}d : {n_stale:,} ({n_stale / max(n_all, 1):.1%})")
 print()
 
 before = in_scope.agg(F.avg("age_days")).first()[0]
 after  = clean.agg(F.avg("age_days")).first()[0]
+
+# Handle empty datasets safely
+before = before if before is not None else 0.0
+after  = after if after is not None else 0.0
+
 print(f"mean age before cut : {before:.1f} d")
 print(f"mean age after cut  : {after:.1f} d  "
       f"({after - before:+.1f})")
 print()
 
-display(excluded.groupBy("exclude_reason", "role_family").count()
-                .orderBy(F.desc("count")))
+display(
+    excluded.groupBy("exclude_reason", "role_family")
+    .count()
+    .orderBy(F.desc("count"))
+)
+
 
 # COMMAND ----------
 
